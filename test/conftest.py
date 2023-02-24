@@ -14,25 +14,29 @@ SQLALCHEMY_DATABASE_URL=f'postgresql://{setting.db_username}:{setting.db_passwor
 engine=create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal_test=sessionmaker(autocommit=False,autoflush=False,bind=engine)
 
-@pytest.fixture
-def session():
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-    db=SessionLocal_test()
+
+# @pytest.fixture
+# def session():
+#     Base.metadata.drop_all(bind=engine)
+#     Base.metadata.create_all(bind=engine)
+#     db=SessionLocal_test()
     
-    try:
-        yield db
-    finally:
-        db.close()    
+#     try:
+#         yield db
+#     finally:
+#         db.close()    
     
 
 @pytest.fixture()
-def client(session):    
+def client():    
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    db=SessionLocal_test()
     def getTest_db():
         try:
-            yield session
+            yield db
         finally:
-            session.close()    
+            db.close()    
     app.dependency_overrides[get_db]=getTest_db
     
     yield TestClient(app)
@@ -58,15 +62,16 @@ def authorized_client(client , token):
     return client
 
 @pytest.fixture
-def testPost(testUser , session):
-    post_data=[
-        {"title":"C","content":"Basic","ower_id":testUser['id'],"run":False},
-        {"title":"C++","content":"OOPS","ower_id":testUser['id']}]
-    def add_post(post):
-        return  model.Post(**post)
-    mapPost = map(add_post , post_data)
+def testPost(authorized_client , testUser):
+    post_data=[{"title":"C","content":"Basic","ower_id":testUser['id'],"run":False},{"title":"C++","content":"OOPS","ower_id":testUser['id']}]
+    # def add_post(post):
+    #     return  model.Post(**post)
+    # mapPost = map(add_post , post_data)
     
-    post = list(mapPost)
-    session.add_all(post)
-    session.commit()
-    return session.query(model.Post).all()
+    # post = list(mapPost)
+    # session.add_all(post)
+    # session.commit()
+    res = authorized_client.post("/get/newpost",json = post_data)
+    testpost = res.json()
+    return testpost
+    # return session.query(model.Post).all()
